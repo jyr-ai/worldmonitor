@@ -52,6 +52,25 @@ const VARIANT_META: Record<string, {
       'Service status monitoring',
     ],
   },
+  commodity: {
+    title: 'Commodity Monitor - Real-Time Commodities & Resources Dashboard',
+    description: 'Real-time commodities and resources dashboard tracking energy markets, mineral prices, supply chains, and geopolitical risks affecting global resources.',
+    keywords: 'commodities dashboard, energy markets, oil prices, natural gas, minerals, mining, supply chains, resources, commodity trading, futures markets, pipelines, shipping, climate impact, economic indicators, resource geopolitics',
+    url: 'https://commodity.worldmonitor.app/',
+    siteName: 'Commodity Monitor',
+    features: [
+      'Commodities price tracking',
+      'Energy market analytics',
+      'Mineral resource mapping',
+      'Supply chain monitoring',
+      'Pipeline infrastructure tracking',
+      'Shipping and logistics',
+      'Climate impact analysis',
+      'Economic indicators',
+      'Resource geopolitics',
+      'Market predictions',
+    ],
+  },
 };
 
 function htmlVariantPlugin(): Plugin {

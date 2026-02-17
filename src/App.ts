@@ -1465,22 +1465,31 @@ export class App {
       <div class="header">
         <div class="header-left">
           <div class="variant-switcher">
-            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? 'https://worldmonitor.app' : '#')}"
-               class="variant-option ${SITE_VARIANT !== 'tech' ? 'active' : ''}"
+            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? 'https://worldmonitor.app' : (SITE_VARIANT === 'commodity' ? 'https://worldmonitor.app' : '#'))}"
+               class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
-               ${!this.isDesktopApp && SITE_VARIANT === 'tech' ? 'target="_blank" rel="noopener"' : ''}
-               title="Geopolitical Intelligence${SITE_VARIANT !== 'tech' ? ' (current)' : ''}">
+               ${!this.isDesktopApp && (SITE_VARIANT === 'tech' || SITE_VARIANT === 'commodity') ? 'target="_blank" rel="noopener"' : ''}
+               title="Geopolitical Intelligence${SITE_VARIANT === 'full' ? ' (current)' : ''}">
               <span class="variant-icon">🌍</span>
               <span class="variant-label">WORLD</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? '#' : 'https://tech.worldmonitor.app')}"
+            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? '#' : (SITE_VARIANT === 'commodity' ? 'https://tech.worldmonitor.app' : 'https://tech.worldmonitor.app'))}"
                class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
                data-variant="tech"
-               ${!this.isDesktopApp && SITE_VARIANT !== 'tech' ? 'target="_blank" rel="noopener"' : ''}
+               ${!this.isDesktopApp && (SITE_VARIANT === 'full' || SITE_VARIANT === 'commodity') ? 'target="_blank" rel="noopener"' : ''}
                title="Tech & AI Intelligence${SITE_VARIANT === 'tech' ? ' (current)' : ''}">
               <span class="variant-icon">💻</span>
               <span class="variant-label">TECH</span>
+            </a>
+            <span class="variant-divider"></span>
+            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'commodity' ? '#' : 'https://commodity.worldmonitor.app')}"
+               class="variant-option ${SITE_VARIANT === 'commodity' ? 'active' : ''}"
+               data-variant="commodity"
+               ${!this.isDesktopApp && (SITE_VARIANT === 'full' || SITE_VARIANT === 'tech') ? 'target="_blank" rel="noopener"' : ''}
+               title="Commodities & Resources Intelligence${SITE_VARIANT === 'commodity' ? ' (current)' : ''}">
+              <span class="variant-icon">⛏️</span>
+              <span class="variant-label">COMMODITY</span>
             </a>
           </div>
           <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>
