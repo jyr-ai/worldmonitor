@@ -40,33 +40,46 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   stablecoins: { name: 'Stablecoins', enabled: true, priority: 2 },
 };
 
-// Map layers for commodities view
+// Map layers for commodities view - Simplified to focus only on commodities
 export const DEFAULT_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  // Core commodities layers
+  mines: true,
+  strategicMines: true,
+  minesByCommodity: false,
+  
+  // Related infrastructure
+  pipelines: true,
+  waterways: true,
+  
+  // Environmental factors affecting commodities
+  climate: true,
+  natural: true,
+  fires: true,
+  
+  // Economic indicators
+  economic: true,
+  
+  // All other layers disabled for clean commodities focus
+  conflicts: false,
   bases: false,
   cables: false,
-  pipelines: true,
   hotspots: false,
   ais: false,
   nuclear: false,
   irradiators: false,
-  sanctions: true,
-  weather: true,
-  economic: true,
-  waterways: true,
-  outages: true,
+  sanctions: false,
+  weather: false,
+  outages: false,
   cyberThreats: false,
   datacenters: false,
   protests: false,
   flights: false,
   military: false,
-  natural: true,
   spaceports: false,
-  minerals: true,
-  fires: true,
+  minerals: true, // Keep minerals as it's commodities-related
   ucdpEvents: false,
   displacement: false,
-  climate: true,
+  
   // Tech layers (disabled in commodity variant)
   startupHubs: false,
   cloudRegions: false,
@@ -77,31 +90,44 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
 
 // Mobile-specific defaults for commodity variant
 export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  // Core commodities layers
+  mines: true,
+  strategicMines: false,
+  minesByCommodity: false,
+  
+  // Related infrastructure
+  pipelines: false,
+  waterways: false,
+  
+  // Environmental factors
+  climate: true,
+  natural: true,
+  fires: true,
+  
+  // Economic indicators
+  economic: false,
+  
+  // All other layers disabled
+  conflicts: false,
   bases: false,
   cables: false,
-  pipelines: false,
   hotspots: false,
   ais: false,
   nuclear: false,
   irradiators: false,
-  sanctions: true,
-  weather: true,
-  economic: false,
-  waterways: false,
-  outages: true,
+  sanctions: false,
+  weather: false,
+  outages: false,
   cyberThreats: false,
   datacenters: false,
   protests: false,
   flights: false,
   military: false,
-  natural: true,
   spaceports: false,
   minerals: true,
-  fires: true,
   ucdpEvents: false,
   displacement: false,
-  climate: true,
+  
   // Tech layers (disabled in commodity variant)
   startupHubs: false,
   cloudRegions: false,

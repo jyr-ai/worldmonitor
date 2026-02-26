@@ -544,6 +544,10 @@ export interface MapLayers {
   accelerators: boolean;
   techHQs: boolean;
   techEvents: boolean;
+  // Commodities variant layers
+  mines: boolean;
+  strategicMines: boolean;
+  minesByCommodity: boolean;
 }
 
 export interface AIDataCenter {
@@ -614,6 +618,60 @@ export interface CriticalMineralProject {
   status: 'producing' | 'development' | 'exploration';
   significance: string;
 }
+
+  // Enhanced mine interface for commodities variant
+  export interface Mine {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+    
+    // Core classification
+    commodity: string; // 'gold', 'silver', 'copper', 'lithium', 'iron_ore', 'cobalt', 'rare_earths'
+    commodityGroup: 'precious' | 'base' | 'critical' | 'industrial';
+    
+    // Production metrics
+    status: 'producing' | 'development' | 'exploration' | 'care_maintenance';
+    annualProduction?: number; // metric tons/year
+    productionUnit?: string; // 't', 'oz', 'carats'
+    reserves?: number; // metric tons
+    grade?: string; // e.g., '2.5 g/t Au', '66% Fe'
+    
+    // Ownership & geopolitics
+    operator: string;
+    owner?: string; // Parent company
+    ownerCountry?: string; // Country of ultimate owner
+    hostCountry: string;
+    region?: string; // e.g., 'Witwatersrand Basin', 'Porphyry Copper Belt'
+    
+    // Strategic significance
+    significance: string;
+    strategicTier: 1 | 2 | 3; // 1 = globally critical, 2 = regionally important, 3 = standard
+    supplyChainRole?: 'primary' | 'secondary' | 'refining' | 'processing';
+    
+    // Risk factors
+    riskFactors?: {
+      politicalRisk: 'low' | 'medium' | 'high';
+      environmentalRisk: 'low' | 'medium' | 'high';
+      laborRisk: 'low' | 'medium' | 'high';
+      waterRisk?: 'low' | 'medium' | 'high'; // For water-intensive mines
+    };
+    
+    // Infrastructure
+    portAccess?: string; // Nearest major port
+    railAccess?: boolean;
+    powerSource?: string;
+    
+    // Temporal data
+    discoveryYear?: number;
+    productionStart?: number;
+    expectedLifespan?: number;
+    
+    // External references
+    usgsId?: string;
+    mindatId?: string;
+    sourceUrl?: string;
+  }
 
 export interface PredictionMarket {
   title: string;
