@@ -1,7 +1,7 @@
 {
   "name": "world-monitor",
   "private": true,
-  "version": "2.5.24",
+  "version": "2.5.25",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -55,6 +55,7 @@
     "desktop:package": "node scripts/desktop-package.mjs"
   },
   "devDependencies": {
+    "@bufbuild/buf": "^1.66.0",
     "@playwright/test": "^1.52.0",
     "@tauri-apps/cli": "^2.10.0",
     "@types/canvas-confetti": "^1.9.0",
@@ -83,6 +84,7 @@
     "@deck.gl/geo-layers": "^9.2.6",
     "@deck.gl/layers": "^9.2.6",
     "@deck.gl/mapbox": "^9.2.6",
+    "@protomaps/basemaps": "^5.7.1",
     "@sentry/browser": "^10.39.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.1",
@@ -101,6 +103,7 @@
     "marked": "^17.0.3",
     "onnxruntime-web": "^1.23.2",
     "papaparse": "^5.5.3",
+    "pmtiles": "^4.4.0",
     "preact": "^10.25.4",
     "supercluster": "^8.0.1",
     "telegram": "^2.26.22",

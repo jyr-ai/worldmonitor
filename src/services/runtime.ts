@@ -1,7 +1,7 @@
 import { SITE_VARIANT } from '@/config/variant';
 
 const WS_API_URL = import.meta.env.VITE_WS_API_URL || '';
-const KEYED_CLOUD_API_PATTERN = /^\/api\/(?:[^/]+\/v1\/|bootstrap(?:\?|$)|rss-proxy(?:\?|$)|polymarket(?:\?|$)|ais-snapshot(?:\?|$))/;
+const KEYED_CLOUD_API_PATTERN = /^\/api\/(?:[^/]+\/v1\/|bootstrap(?:\?|$)|polymarket(?:\?|$)|ais-snapshot(?:\?|$))/;
 
 const DEFAULT_REMOTE_HOSTS: Record<string, string> = {
   tech: WS_API_URL,
@@ -414,6 +414,23 @@ export function startSmartPollLoop(
     },
     isActive: () => active,
   };
+}
+
+export async function waitForSidecarReady(timeoutMs = 3000): Promise<boolean> {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) return false;
+  const pollInterval = 200;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${baseUrl}/api/service-status`, { method: 'GET' });
+      if (res.ok) return true;
+    } catch {
+      // sidecar not ready yet
+    }
+    await sleep(pollInterval);
+  }
+  return false;
 }
 
 function isLocalOnlyApiTarget(target: string): boolean {

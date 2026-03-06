@@ -22,7 +22,7 @@ import type { ETFFlowsPanel } from '@/components/ETFFlowsPanel';
 import type { MacroSignalsPanel } from '@/components/MacroSignalsPanel';
 import type { StrategicPosturePanel } from '@/components/StrategicPosturePanel';
 import type { StrategicRiskPanel } from '@/components/StrategicRiskPanel';
-import { isDesktopRuntime } from '@/services/runtime';
+import { isDesktopRuntime, waitForSidecarReady } from '@/services/runtime';
 import { BETA_MODE } from '@/config/beta';
 import { trackEvent, trackDeeplinkOpened } from '@/services/analytics';
 import { preloadCountryGeometry, getCountryNameByCode } from '@/services/country-geometry';
@@ -260,7 +260,6 @@ export class App {
       playbackControl: null,
       exportPanel: null,
       unifiedSettings: null,
-      mobileWarningModal: null,
       pizzintIndicator: null,
       countryBriefPage: null,
       countryTimeline: null,
@@ -383,6 +382,11 @@ export class App {
       initAisStream();
     }
 
+    // Wait for sidecar readiness on desktop so bootstrap hits a live server
+    if (isDesktopRuntime()) {
+      await waitForSidecarReady(3000);
+    }
+
     // Hydrate in-memory cache from bootstrap endpoint (before panels construct and fetch)
     await fetchBootstrapData();
 
@@ -433,7 +437,6 @@ export class App {
 
     // Phase 3: UI setup methods
     this.eventHandlers.startHeaderClock();
-    this.eventHandlers.setupMobileWarning();
     this.eventHandlers.setupPlaybackControl();
     this.eventHandlers.setupStatusPanel();
     this.eventHandlers.setupPizzIntIndicator();

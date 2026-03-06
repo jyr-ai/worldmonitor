@@ -2,6 +2,7 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 import { validateApiKey } from './_api-key.js';
 import { checkRateLimit } from './_rate-limit.js';
 import { getRelayBaseUrl, getRelayHeaders, fetchWithTimeout } from './_relay.js';
+import RSS_ALLOWED_DOMAINS from './_rss-allowed-domains.js';
 
 export const config = { runtime: 'edge' };
 
@@ -345,6 +346,8 @@ const ALLOWED_DOMAINS = [
   'feeds.content.dowjones.io',
   'thehill.com',
 ];
+// Allowed RSS feed domains — shared source of truth (shared/rss-allowed-domains.js)
+const ALLOWED_DOMAINS = RSS_ALLOWED_DOMAINS;
 
 export default async function handler(req) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
@@ -422,7 +425,17 @@ export default async function handler(req) {
         const location = response.headers.get('location');
         if (location) {
           const redirectUrl = new URL(location, feedUrl);
-          if (!ALLOWED_DOMAINS.includes(redirectUrl.hostname)) {
+          // Apply the same www-normalization as the initial domain check so that
+          // canonical redirects (e.g. bbc.co.uk → www.bbc.co.uk) are not
+          // incorrectly rejected when only one form is in the allowlist.
+          const rHost = redirectUrl.hostname;
+          const rBare = rHost.replace(/^www\./, '');
+          const rWithWww = rHost.startsWith('www.') ? rHost : `www.${rHost}`;
+          if (
+            !ALLOWED_DOMAINS.includes(rHost) &&
+            !ALLOWED_DOMAINS.includes(rBare) &&
+            !ALLOWED_DOMAINS.includes(rWithWww)
+          ) {
             throw new Error('Redirect to disallowed domain');
           }
           return fetchWithTimeout(redirectUrl.href, {

@@ -1,6 +1,9 @@
 import type { PanelConfig, MapLayers } from '@/types';
 import type { DataSourceId } from '@/services/data-freshness';
 import { SITE_VARIANT } from './variant';
+import { isDesktopRuntime } from '@/services/runtime';
+
+const _desktop = isDesktopRuntime();
 
 // ============================================
 // FULL VARIANT (Geopolitical)
@@ -54,15 +57,16 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'security-advisories': { name: 'Security Advisories', enabled: true, priority: 2 },
   'oref-sirens': { name: 'Israel Sirens', enabled: true, priority: 2 },
   'telegram-intel': { name: 'Telegram Intel', enabled: true, priority: 2 },
+  'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
-  iranAttacks: true,
+  iranAttacks: _desktop ? false : true,
   gpsJamming: false,
-  geopoliticalBoundaries: true,
+
   conflicts: true,
-  bases: true,
+  bases: _desktop ? false : true,
   cables: false,
   pipelines: false,
   hotspots: true,
@@ -117,7 +121,7 @@ const FULL_MAP_LAYERS: MapLayers = {
 const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   iranAttacks: true,
   gpsJamming: false,
-  geopoliticalBoundaries: true,
+
   conflicts: true,
   bases: false,
   cables: false,
@@ -208,13 +212,14 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   'macro-signals': { name: 'Market Radar', enabled: true, priority: 2 },
   'etf-flows': { name: 'BTC ETF Tracker', enabled: true, priority: 2 },
   stablecoins: { name: 'Stablecoins', enabled: true, priority: 2 },
+  'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
 const TECH_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: true,
@@ -271,7 +276,7 @@ const TECH_MAP_LAYERS: MapLayers = {
 
 const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: false,
@@ -361,13 +366,14 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   gccNews: { name: 'GCC Business News', enabled: true, priority: 2 },
   'gulf-economies': { name: 'Gulf Economies', enabled: true, priority: 1 },
   polymarket: { name: 'Predictions', enabled: true, priority: 2 },
+  'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
 const FINANCE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: true,
@@ -424,7 +430,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
 
 const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: false,
@@ -497,7 +503,7 @@ const HAPPY_PANELS: Record<string, PanelConfig> = {
 
 const HAPPY_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: false,
@@ -554,7 +560,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
 
 const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   gpsJamming: false,
-  geopoliticalBoundaries: false,
+
   conflicts: false,
   bases: false,
   cables: false,

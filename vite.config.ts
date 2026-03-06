@@ -196,6 +196,7 @@ function sebufApiPlugin(): Plugin {
       givingServerMod, givingHandlerMod,
       tradeServerMod, tradeHandlerMod,
       supplyChainServerMod, supplyChainHandlerMod,
+      naturalServerMod, naturalHandlerMod,
     ] = await Promise.all([
         import('./server/router'),
         import('./server/cors'),
@@ -242,6 +243,8 @@ function sebufApiPlugin(): Plugin {
         import('./server/worldmonitor/trade/v1/handler'),
         import('./src/generated/server/worldmonitor/supply_chain/v1/service_server'),
         import('./server/worldmonitor/supply-chain/v1/handler'),
+        import('./src/generated/server/worldmonitor/natural/v1/service_server'),
+        import('./server/worldmonitor/natural/v1/handler'),
       ]);
 
     const serverOptions = { onError: errorMod.mapErrorToResponse };
@@ -267,6 +270,7 @@ function sebufApiPlugin(): Plugin {
       ...givingServerMod.createGivingServiceRoutes(givingHandlerMod.givingHandler, serverOptions),
       ...tradeServerMod.createTradeServiceRoutes(tradeHandlerMod.tradeHandler, serverOptions),
       ...supplyChainServerMod.createSupplyChainServiceRoutes(supplyChainHandlerMod.supplyChainHandler, serverOptions),
+      ...naturalServerMod.createNaturalServiceRoutes(naturalHandlerMod.naturalHandler, serverOptions),
     ];
     cachedCorsMod = corsMod;
     return routerMod.createRouter(allRoutes);
@@ -623,11 +627,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'html-navigation',
-              networkTimeoutSeconds: 3,
-            },
+            handler: 'NetworkOnly',
           },
           {
             urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
@@ -648,20 +648,23 @@ export default defineConfig({
             method: 'GET',
           },
           {
-            urlPattern: /^https:\/\/api\.maptiler\.com\//,
-            handler: 'CacheFirst',
+            urlPattern: ({ url }: { url: URL }) =>
+              url.pathname.endsWith('.pmtiles') ||
+              url.hostname.endsWith('.r2.dev') ||
+              url.hostname === 'build.protomaps.com',
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'map-tiles',
+              cacheName: 'pmtiles-ranges',
               expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
+              cacheableResponse: { statuses: [0, 200, 206] },
             },
           },
           {
-            urlPattern: /^https:\/\/[abc]\.basemaps\.cartocdn\.com\//,
+            urlPattern: /^https:\/\/protomaps\.github\.io\//,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'carto-tiles',
-              expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheName: 'protomaps-assets',
+              expiration: { maxEntries: 100, maxAgeSeconds: 365 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
@@ -750,7 +753,7 @@ export default defineConfig({
             if (id.includes('/onnxruntime-web/')) {
               return 'onnxruntime';
             }
-            if (id.includes('/maplibre-gl/')) {
+            if (id.includes('/maplibre-gl/') || id.includes('/pmtiles/') || id.includes('/@protomaps/basemaps/')) {
               return 'maplibre';
             }
             if (

@@ -3,13 +3,15 @@ import { PANEL_CATEGORY_MAP } from '@/config/panels';
 import { SITE_VARIANT } from '@/config/variant';
 import { LANGUAGES, changeLanguage, getCurrentLanguage, t } from '@/services/i18n';
 import { getAiFlowSettings, setAiFlowSetting, getStreamQuality, setStreamQuality, STREAM_QUALITY_OPTIONS } from '@/services/ai-flow-settings';
-import { getGlobeRenderScale, setGlobeRenderScale, GLOBE_RENDER_SCALE_OPTIONS, type GlobeRenderScale } from '@/services/globe-render-settings';
+import { getMapProvider, setMapProvider, MAP_PROVIDER_OPTIONS, type MapProvider } from '@/config/basemap';
 import { getLiveStreamsAlwaysOn, setLiveStreamsAlwaysOn } from '@/services/live-stream-settings';
+import { getGlobeVisualPreset, setGlobeVisualPreset, GLOBE_VISUAL_PRESET_OPTIONS, type GlobeVisualPreset } from '@/services/globe-render-settings';
 import type { StreamQuality } from '@/services/ai-flow-settings';
 import { escapeHtml } from '@/utils/sanitize';
 import { trackLanguageChange } from '@/services/analytics';
 import type { PanelConfig } from '@/types';
 import type { StatusPanel } from './StatusPanel';
+import { exportSettings, importSettings, type ImportResult } from '@/utils/settings-persistence';
 
 const GEAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 
@@ -30,6 +32,8 @@ export interface UnifiedSettingsConfig {
   isGlobeMode?: () => boolean;
   /** Switch between flat-map and 3D-globe */
   onMapModeChange?: (useGlobe: boolean) => void;
+  /** Switch map tile provider */
+  onMapProviderChange?: (provider: MapProvider) => void;
 }
 
 type TabId = 'general' | 'panels' | 'sources' | 'status';
@@ -145,6 +149,22 @@ export class UnifiedSettings {
         this.updateSourcesCounter();
         return;
       }
+
+      if (target.closest('#usExportBtn')) {
+        try {
+          exportSettings();
+          this.showDataMgmtToast(t('components.settings.exportSuccess'), true);
+        } catch {
+          this.showDataMgmtToast(t('components.settings.exportFailed'), false);
+        }
+        return;
+      }
+
+      if (target.closest('#usImportBtn')) {
+        const input = this.overlay.querySelector<HTMLInputElement>('#usImportInput');
+        input?.click();
+        return;
+      }
     });
 
     // Handle input events for search
@@ -164,14 +184,34 @@ export class UnifiedSettings {
     this.overlay.addEventListener('change', (e) => {
       const target = e.target as HTMLInputElement;
 
+      if (target.id === 'usImportInput') {
+        const file = target.files?.[0];
+        if (!file) return;
+        importSettings(file).then((result: ImportResult) => {
+          this.showDataMgmtToast(t('components.settings.importSuccess', { count: String(result.keysImported) }), true);
+        }).catch(() => {
+          this.showDataMgmtToast(t('components.settings.importFailed'), false);
+        });
+        target.value = '';
+        return;
+      }
+
       // Stream quality select
       if (target.id === 'us-stream-quality') {
         setStreamQuality(target.value as StreamQuality);
         return;
       }
 
-      if (target.id === 'us-globe-render-scale') {
-        setGlobeRenderScale(target.value as GlobeRenderScale);
+
+      if (target.id === 'us-globe-visual-preset') {
+        setGlobeVisualPreset(target.value as GlobeVisualPreset);
+        return;
+      }
+
+      if (target.id === 'us-map-provider') {
+        const provider = target.value as MapProvider;
+        setMapProvider(provider);
+        this.config.onMapProviderChange?.(provider);
         return;
       }
 
@@ -187,10 +227,7 @@ export class UnifiedSettings {
         return;
       }
 
-      if (target.id === 'us-globe-mode') {
-        this.config.onMapModeChange?.(target.checked);
-        return;
-      } else if (target.id === 'us-cloud') {
+      if (target.id === 'us-cloud') {
         setAiFlowSetting('cloudLlm', target.checked);
         this.updateAiStatus();
       } else if (target.id === 'us-browser') {
@@ -323,44 +360,23 @@ export class UnifiedSettings {
   private renderGeneralContent(): string {
     const settings = getAiFlowSettings();
     const currentLang = getCurrentLanguage();
-    const globeEnabled = this.config.isGlobeMode?.() ?? false;
-
     let html = '';
 
     // Map section
     html += `<div class="ai-flow-section-label">${t('components.insights.sectionMap')}</div>`;
 
-    // Globe / flat-map mode toggle
-    html += `
-      <div class="ai-flow-toggle-row">
-        <div class="ai-flow-toggle-label-wrap">
-          <div class="ai-flow-toggle-label">3D Globe View</div>
-          <div class="ai-flow-toggle-desc">Switch between flat map and interactive 3D globe (like Sentinel). Zoom, rotate, and explore in three dimensions.</div>
-        </div>
-        <label class="ai-flow-switch">
-          <input type="checkbox" id="us-globe-mode"${globeEnabled ? ' checked' : ''}>
-          <span class="ai-flow-slider"></span>
-        </label>
-      </div>`;
-
-    // Globe render quality (pixel ratio)
-    const globeScale = getGlobeRenderScale();
-    const globeRenderLabelKey = 'components.insights.globeRenderQualityLabel';
-    const globeRenderDescKey = 'components.insights.globeRenderQualityDesc';
-    const globeRenderLabel = t(globeRenderLabelKey);
-    const globeRenderDesc = t(globeRenderDescKey);
+    // Map tile provider
+    const currentProvider = getMapProvider();
     html += `<div class="ai-flow-toggle-row">
       <div class="ai-flow-toggle-label-wrap">
-        <div class="ai-flow-toggle-label">${globeRenderLabel === globeRenderLabelKey ? 'Globe render quality' : globeRenderLabel}</div>
-        <div class="ai-flow-toggle-desc">${globeRenderDesc === globeRenderDescKey ? 'Controls the globe canvas resolution. Higher values look sharper on 4K displays but can melt GPUs.' : globeRenderDesc}</div>
+        <div class="ai-flow-toggle-label">Map Tile Provider</div>
+        <div class="ai-flow-toggle-desc">Choose where map tiles are loaded from. Auto uses self-hosted PMTiles with OpenFreeMap fallback.</div>
       </div>
     </div>`;
-    html += `<select class="unified-settings-select" id="us-globe-render-scale">`;
-    for (const opt of GLOBE_RENDER_SCALE_OPTIONS) {
-      const selected = opt.value === globeScale ? ' selected' : '';
-      const translatedLabel = t(opt.labelKey);
-      const label = translatedLabel === opt.labelKey ? opt.fallbackLabel : translatedLabel;
-      html += `<option value="${opt.value}"${selected}>${label}</option>`;
+    html += `<select class="unified-settings-select" id="us-map-provider">`;
+    for (const opt of MAP_PROVIDER_OPTIONS) {
+      const selected = opt.value === currentProvider ? ' selected' : '';
+      html += `<option value="${opt.value}"${selected}>${opt.label}</option>`;
     }
     html += `</select>`;
 
@@ -424,6 +440,42 @@ export class UnifiedSettings {
       html += `<option value="${lang.code}"${selected}>${lang.flag} ${lang.label}</option>`;
     }
     html += `</select>`;
+    if (currentLang === 'vi') {
+      html += `<div class="ai-flow-toggle-desc">${t('components.languageSelector.mapLabelsFallbackVi')}</div>`;
+    }
+
+    // 3D Globe Visual Preset
+    const currentPreset = getGlobeVisualPreset();
+    html += `<div class="ai-flow-section-label">3D Globe Visual</div>`;
+    html += `<div class="ai-flow-toggle-row">
+      <div class="ai-flow-toggle-label-wrap">
+        <div class="ai-flow-toggle-label">Visual Preset</div>
+        <div class="ai-flow-toggle-desc">Switch between classic and enhanced globe visuals to compare</div>
+      </div>
+    </div>`;
+    html += `<select class="unified-settings-select" id="us-globe-visual-preset">`;
+    for (const opt of GLOBE_VISUAL_PRESET_OPTIONS) {
+      const selected = opt.value === currentPreset ? ' selected' : '';
+      html += `<option value="${opt.value}"${selected}>${opt.label}</option>`;
+    }
+    html += `</select>`;
+
+    // Data Management section
+    html += `<div class="ai-flow-section-label">${t('components.settings.dataManagementLabel')}</div>`;
+    html += `
+      <div class="us-data-mgmt">
+        <button type="button" class="settings-btn settings-btn-secondary" id="usExportBtn">${t('components.settings.exportSettings')}</button>
+        <button type="button" class="settings-btn settings-btn-secondary" id="usImportBtn">${t('components.settings.importSettings')}</button>
+        <input type="file" id="usImportInput" accept=".json" class="us-hidden-input" />
+      </div>
+      <div class="us-data-mgmt-toast" id="usDataMgmtToast"></div>
+    `;
+    // Community section
+    html += `<div class="ai-flow-section-label">${t('components.community.sectionLabel')}</div>`;
+    html += `<a href="https://github.com/koala73/worldmonitor/discussions/94" target="_blank" rel="noopener" class="us-discussion-link">
+      <span class="us-discussion-dot"></span>
+      <span>${t('components.community.joinDiscussion')}</span>
+    </a>`;
 
     // AI status footer (web-only)
     if (!this.config.isDesktopApp) {
@@ -468,6 +520,19 @@ export class UnifiedSettings {
       dot.classList.add('disabled');
       text.textContent = t('components.insights.aiFlowStatusDisabled');
     }
+  }
+
+  private showDataMgmtToast(msg: string, success: boolean): void {
+    const toast = this.overlay.querySelector('#usDataMgmtToast');
+    if (!toast) return;
+    toast.className = `us-data-mgmt-toast ${success ? 'ok' : 'error'}`;
+    toast.innerHTML = success
+      ? `${escapeHtml(msg)} <a href="#" class="us-toast-reload">${t('components.settings.reloadNow')}</a>`
+      : escapeHtml(msg);
+    toast.querySelector('.us-toast-reload')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.reload();
+    });
   }
 
   public refreshStatusTab(): void {

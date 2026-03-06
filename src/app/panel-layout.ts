@@ -22,33 +22,19 @@ import {
   ServiceStatusPanel,
   RuntimeConfigPanel,
   InsightsPanel,
-  TechReadinessPanel,
   MacroSignalsPanel,
   ETFFlowsPanel,
   StablecoinPanel,
   UcdpEventsPanel,
-  DisplacementPanel,
-  ClimateAnomalyPanel,
-  PopulationExposurePanel,
   InvestmentsPanel,
   TradePolicyPanel,
   SupplyChainPanel,
-  SecurityAdvisoriesPanel,
-  OrefSirensPanel,
-  TelegramIntelPanel,
   GulfEconomiesPanel,
   WorldClockPanel,
+  AirlineIntelPanel,
+  AviationCommandBar,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
-import { PositiveNewsFeedPanel } from '@/components/PositiveNewsFeedPanel';
-import { CountersPanel } from '@/components/CountersPanel';
-import { ProgressChartsPanel } from '@/components/ProgressChartsPanel';
-import { BreakthroughsTickerPanel } from '@/components/BreakthroughsTickerPanel';
-import { HeroSpotlightPanel } from '@/components/HeroSpotlightPanel';
-import { GoodThingsDigestPanel } from '@/components/GoodThingsDigestPanel';
-import { SpeciesComebackPanel } from '@/components/SpeciesComebackPanel';
-import { RenewableEnergyPanel } from '@/components/RenewableEnergyPanel';
-import { GivingPanel } from '@/components';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
 import { debounce, saveToStorage, loadFromStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
@@ -77,6 +63,7 @@ export class PanelLayoutManager implements AppModule {
   private callbacks: PanelLayoutCallbacks;
   private panelDragCleanupHandlers: Array<() => void> = [];
   private criticalBannerEl: HTMLElement | null = null;
+  private aviationCommandBar: AviationCommandBar | null = null;
   private readonly applyTimeRangeFilterDebounced: (() => void) & { cancel(): void };
 
   constructor(ctx: AppContext, callbacks: PanelLayoutCallbacks) {
@@ -110,6 +97,11 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.speciesPanel?.destroy();
     this.ctx.renewablePanel?.destroy();
 
+    // Clean up aviation components
+    this.aviationCommandBar?.destroy();
+    this.aviationCommandBar = null;
+    this.ctx.panels['airline-intel']?.destroy();
+
     window.removeEventListener('resize', this.ensureCorrectZones);
   }
 
@@ -117,6 +109,9 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.container.innerHTML = `
       <div class="header">
         <div class="header-left">
+          <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
           <div class="variant-switcher">${(() => {
         const local = this.ctx.isDesktopApp || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
@@ -167,7 +162,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">Good News</span>
             </a>` : ''}`;
       })()}</div>
-          <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
+          <span class="logo">MONITOR</span><span class="logo-mobile">World Monitor</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
           <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
             <span class="credit-text"${SITE_VARIANT === 'commodity' ? ' style="font-size:10px"' : ''}>@eliehabib</span>
@@ -197,6 +192,9 @@ export class PanelLayoutManager implements AppModule {
               <option value="oceania">${t('components.deckgl.views.oceania')}</option>
             </select>
           </div>
+          <button class="mobile-search-btn" id="mobileSearchBtn" aria-label="${t('header.search')}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
         </div>
         <div class="header-right">
           ${this.ctx.isDesktopApp ? '' : `<div class="download-wrapper" id="downloadWrapper">
@@ -218,14 +216,84 @@ export class PanelLayoutManager implements AppModule {
           <span id="unifiedSettingsMount"></span>
         </div>
       </div>
+      <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+      <nav class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-header">
+          <span class="mobile-menu-title">WORLD MONITOR</span>
+          <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="mobile-menu-divider"></div>
+        ${(() => {
+        const variants = [
+          { key: 'full', icon: '🌍', label: t('header.world') },
+          { key: 'tech', icon: '💻', label: t('header.tech') },
+          { key: 'finance', icon: '📈', label: t('header.finance') },
+        ];
+        if (SITE_VARIANT === 'happy') variants.push({ key: 'happy', icon: '☀️', label: 'Good News' });
+        return variants.map(v =>
+          `<button class="mobile-menu-item mobile-menu-variant ${v.key === SITE_VARIANT ? 'active' : ''}" data-variant="${v.key}">
+            <span class="mobile-menu-item-icon">${v.icon}</span>
+            <span class="mobile-menu-item-label">${v.label}</span>
+            ${v.key === SITE_VARIANT ? '<span class="mobile-menu-check">✓</span>' : ''}
+          </button>`
+        ).join('');
+      })()}
+        <div class="mobile-menu-divider"></div>
+        <button class="mobile-menu-item" id="mobileMenuRegion">
+          <span class="mobile-menu-item-icon">🌐</span>
+          <span class="mobile-menu-item-label">${t('components.deckgl.views.global')}</span>
+          <span class="mobile-menu-chevron">▸</span>
+        </button>
+        <div class="mobile-menu-divider"></div>
+        <button class="mobile-menu-item" id="mobileMenuSettings">
+          <span class="mobile-menu-item-icon">⚙️</span>
+          <span class="mobile-menu-item-label">${t('header.settings')}</span>
+        </button>
+        <button class="mobile-menu-item" id="mobileMenuTheme">
+          <span class="mobile-menu-item-icon">${getCurrentTheme() === 'dark' ? '☀️' : '🌙'}</span>
+          <span class="mobile-menu-item-label">${getCurrentTheme() === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+        <a class="mobile-menu-item" href="https://x.com/eliehabib" target="_blank" rel="noopener">
+          <span class="mobile-menu-item-icon"><svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
+          <span class="mobile-menu-item-label">@eliehabib</span>
+        </a>
+        <div class="mobile-menu-divider"></div>
+        <div class="mobile-menu-version">v${__APP_VERSION__}</div>
+      </nav>
+      <div class="region-sheet-backdrop" id="regionSheetBackdrop"></div>
+      <div class="region-bottom-sheet" id="regionBottomSheet">
+        <div class="region-sheet-header">${t('header.selectRegion')}</div>
+        <div class="region-sheet-divider"></div>
+        ${[
+        { value: 'global', label: t('components.deckgl.views.global') },
+        { value: 'america', label: t('components.deckgl.views.americas') },
+        { value: 'mena', label: t('components.deckgl.views.mena') },
+        { value: 'eu', label: t('components.deckgl.views.europe') },
+        { value: 'asia', label: t('components.deckgl.views.asia') },
+        { value: 'latam', label: t('components.deckgl.views.latam') },
+        { value: 'africa', label: t('components.deckgl.views.africa') },
+        { value: 'oceania', label: t('components.deckgl.views.oceania') },
+      ].map(r =>
+        `<button class="region-sheet-option ${r.value === 'global' ? 'active' : ''}" data-region="${r.value}">
+          <span>${r.label}</span>
+          <span class="region-sheet-check">${r.value === 'global' ? '✓' : ''}</span>
+        </button>`
+      ).join('')}
+      </div>
       <div class="main-content">
         <div class="map-section" id="mapSection">
           <div class="panel-header">
             <div class="panel-header-left">
               <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : t('panels.map')}</span>
             </div>
-            <span class="header-clock" id="headerClock"></span>
+            <span class="header-clock" id="headerClock" translate="no"></span>
             <div style="display:flex;align-items:center;gap:2px">
+              <div class="map-dimension-toggle" id="mapDimensionToggle">
+                <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? '' : ' active'}" data-mode="flat" title="2D Map">2D</button>
+                <button class="map-dim-btn${loadFromStorage<string>(STORAGE_KEYS.mapMode, 'flat') === 'globe' ? ' active' : ''}" data-mode="globe" title="3D Globe">3D</button>
+              </div>
               <button class="map-pin-btn" id="mapFullscreenBtn" title="Fullscreen">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
@@ -242,6 +310,7 @@ export class PanelLayoutManager implements AppModule {
           <div class="map-bottom-grid" id="mapBottomGrid"></div>
         </div>
         <div class="panels-grid" id="panelsGrid"></div>
+        <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
       </div>
     `;
 
@@ -353,6 +422,10 @@ export class PanelLayoutManager implements AppModule {
         const mapSection = document.getElementById('mapSection');
         if (mapSection) {
           mapSection.classList.toggle('hidden', !config.enabled);
+          const mainContent = document.querySelector('.main-content');
+          if (mainContent) {
+            mainContent.classList.toggle('map-hidden', !config.enabled);
+          }
         }
         return;
       }
@@ -615,32 +688,41 @@ export class PanelLayoutManager implements AppModule {
       });
       this.ctx.panels['ucdp-events'] = ucdpEventsPanel;
 
-      const displacementPanel = new DisplacementPanel();
-      displacementPanel.setCountryClickHandler((lat, lon) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-      });
-      this.ctx.panels['displacement'] = displacementPanel;
+      this.lazyPanel('displacement', () =>
+        import('@/components/DisplacementPanel').then(m => {
+          const p = new m.DisplacementPanel();
+          p.setCountryClickHandler((lat: number, lon: number) => { this.ctx.map?.setCenter(lat, lon, 4); });
+          return p;
+        }),
+      );
 
-      const climatePanel = new ClimateAnomalyPanel();
-      climatePanel.setZoneClickHandler((lat, lon) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-      });
-      this.ctx.panels['climate'] = climatePanel;
+      this.lazyPanel('climate', () =>
+        import('@/components/ClimateAnomalyPanel').then(m => {
+          const p = new m.ClimateAnomalyPanel();
+          p.setZoneClickHandler((lat: number, lon: number) => { this.ctx.map?.setCenter(lat, lon, 4); });
+          return p;
+        }),
+      );
 
-      const populationExposurePanel = new PopulationExposurePanel();
-      this.ctx.panels['population-exposure'] = populationExposurePanel;
+      this.lazyPanel('population-exposure', () =>
+        import('@/components/PopulationExposurePanel').then(m => new m.PopulationExposurePanel()),
+      );
 
-      const securityAdvisoriesPanel = new SecurityAdvisoriesPanel();
-      securityAdvisoriesPanel.setRefreshHandler(() => {
-        void this.callbacks.loadSecurityAdvisories?.();
-      });
-      this.ctx.panels['security-advisories'] = securityAdvisoriesPanel;
+      this.lazyPanel('security-advisories', () =>
+        import('@/components/SecurityAdvisoriesPanel').then(m => {
+          const p = new m.SecurityAdvisoriesPanel();
+          p.setRefreshHandler(() => { void this.callbacks.loadSecurityAdvisories?.(); });
+          return p;
+        }),
+      );
 
-      const orefSirensPanel = new OrefSirensPanel();
-      this.ctx.panels['oref-sirens'] = orefSirensPanel;
+      this.lazyPanel('oref-sirens', () =>
+        import('@/components/OrefSirensPanel').then(m => new m.OrefSirensPanel()),
+      );
 
-      const telegramIntelPanel = new TelegramIntelPanel();
-      this.ctx.panels['telegram-intel'] = telegramIntelPanel;
+      this.lazyPanel('telegram-intel', () =>
+        import('@/components/TelegramIntelPanel').then(m => new m.TelegramIntelPanel()),
+      );
     }
 
     if (SITE_VARIANT === 'finance') {
@@ -654,6 +736,13 @@ export class PanelLayoutManager implements AppModule {
     }
 
     this.ctx.panels['world-clock'] = new WorldClockPanel();
+
+    // Airline Intelligence panel (non-happy variants)
+    if (SITE_VARIANT !== 'happy') {
+      this.ctx.panels['airline-intel'] = new AirlineIntelPanel();
+      // Launch the Ctrl+J command bar (attaches global keydown listener)
+      this.aviationCommandBar = new AviationCommandBar();
+    }
 
     if (SITE_VARIANT !== 'happy') {
       if (!this.ctx.panels['gulf-economies']) {
@@ -672,8 +761,9 @@ export class PanelLayoutManager implements AppModule {
       const serviceStatusPanel = new ServiceStatusPanel();
       this.ctx.panels['service-status'] = serviceStatusPanel;
 
-      const techReadinessPanel = new TechReadinessPanel();
-      this.ctx.panels['tech-readiness'] = techReadinessPanel;
+      this.lazyPanel('tech-readiness', () =>
+        import('@/components/TechReadinessPanel').then(m => new m.TechReadinessPanel()),
+      );
 
       this.ctx.panels['macro-signals'] = new MacroSignalsPanel();
       this.ctx.panels['etf-flows'] = new ETFFlowsPanel();
@@ -689,38 +779,80 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.panels['insights'] = insightsPanel;
 
     // Global Giving panel (all variants)
-    this.ctx.panels['giving'] = new GivingPanel();
+    this.lazyPanel('giving', () =>
+      import('@/components/GivingPanel').then(m => new m.GivingPanel()),
+    );
 
-    // Happy variant panels
+    // Happy variant panels (lazy-loaded — only relevant for happy variant)
     if (SITE_VARIANT === 'happy') {
-      this.ctx.positivePanel = new PositiveNewsFeedPanel();
-      this.ctx.panels['positive-feed'] = this.ctx.positivePanel;
+      this.lazyPanel('positive-feed', () =>
+        import('@/components/PositiveNewsFeedPanel').then(m => {
+          const p = new m.PositiveNewsFeedPanel();
+          this.ctx.positivePanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.countersPanel = new CountersPanel();
-      this.ctx.panels['counters'] = this.ctx.countersPanel;
-      this.ctx.countersPanel.startTicking();
+      this.lazyPanel('counters', () =>
+        import('@/components/CountersPanel').then(m => {
+          const p = new m.CountersPanel();
+          p.startTicking();
+          this.ctx.countersPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.progressPanel = new ProgressChartsPanel();
-      this.ctx.panels['progress'] = this.ctx.progressPanel;
+      this.lazyPanel('progress', () =>
+        import('@/components/ProgressChartsPanel').then(m => {
+          const p = new m.ProgressChartsPanel();
+          this.ctx.progressPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.breakthroughsPanel = new BreakthroughsTickerPanel();
-      this.ctx.panels['breakthroughs'] = this.ctx.breakthroughsPanel;
+      this.lazyPanel('breakthroughs', () =>
+        import('@/components/BreakthroughsTickerPanel').then(m => {
+          const p = new m.BreakthroughsTickerPanel();
+          this.ctx.breakthroughsPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.heroPanel = new HeroSpotlightPanel();
-      this.ctx.panels['spotlight'] = this.ctx.heroPanel;
-      this.ctx.heroPanel.onLocationRequest = (lat: number, lon: number) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-        this.ctx.map?.flashLocation(lat, lon, 3000);
-      };
+      this.lazyPanel('spotlight', () =>
+        import('@/components/HeroSpotlightPanel').then(m => {
+          const p = new m.HeroSpotlightPanel();
+          p.onLocationRequest = (lat: number, lon: number) => {
+            this.ctx.map?.setCenter(lat, lon, 4);
+            this.ctx.map?.flashLocation(lat, lon, 3000);
+          };
+          this.ctx.heroPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.digestPanel = new GoodThingsDigestPanel();
-      this.ctx.panels['digest'] = this.ctx.digestPanel;
+      this.lazyPanel('digest', () =>
+        import('@/components/GoodThingsDigestPanel').then(m => {
+          const p = new m.GoodThingsDigestPanel();
+          this.ctx.digestPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.speciesPanel = new SpeciesComebackPanel();
-      this.ctx.panels['species'] = this.ctx.speciesPanel;
+      this.lazyPanel('species', () =>
+        import('@/components/SpeciesComebackPanel').then(m => {
+          const p = new m.SpeciesComebackPanel();
+          this.ctx.speciesPanel = p;
+          return p;
+        }),
+      );
 
-      this.ctx.renewablePanel = new RenewableEnergyPanel();
-      this.ctx.panels['renewable'] = this.ctx.renewablePanel;
+      this.lazyPanel('renewable', () =>
+        import('@/components/RenewableEnergyPanel').then(m => {
+          const p = new m.RenewableEnergyPanel();
+          this.ctx.renewablePanel = p;
+          return p;
+        }),
+      );
     }
 
     const defaultOrder = Object.keys(DEFAULT_PANELS).filter(k => k !== 'map');
@@ -1010,6 +1142,23 @@ export class PanelLayoutManager implements AppModule {
         this.ctx.map.triggerNuclearClick(asset.id);
         break;
     }
+  }
+
+  private lazyPanel<T extends { getElement(): HTMLElement }>(
+    key: string,
+    loader: () => Promise<T>,
+    setup?: (panel: T) => void,
+  ): void {
+    loader().then((panel) => {
+      this.ctx.panels[key] = panel as unknown as import('@/components/Panel').Panel;
+      if (setup) setup(panel);
+      const el = panel.getElement();
+      this.makeDraggable(el, key);
+      const grid = document.getElementById('panelsGrid');
+      if (grid) grid.appendChild(el);
+    }).catch((err) => {
+      console.error(`[panel] failed to lazy-load "${key}"`, err);
+    });
   }
 
   private makeDraggable(el: HTMLElement, key: string): void {
